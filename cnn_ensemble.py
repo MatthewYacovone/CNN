@@ -84,25 +84,51 @@ class_names = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat', 'Sandal', 
 def evaluate_ensemble(models, test_dl, device):
     total = 0
     ensemble_correct = 0
+    total_disagreement = 0
+    n_images_with_disagreement = 0
+
     with torch.no_grad():
         for x_batch, y_batch in test_dl:
             x_batch = x_batch.to(device)
-            outputs_sum = None
+            batch_size = x_batch.size(0)
 
-            # Sum outputs for each model
+            # Collect individual model predictions
+            model_preds = []
+            for model in models:
+                outputs = model(x_batch)
+                pred = torch.argmax(outputs, dim=1).cpu()
+                model_preds.append(pred)
+            model_preds = torch.stack(model_preds, dim=0) # (n_models, batch_size)
+            
+            # Find ensemble prediction by averaging the outputs
+            outputs_sum = None
             for model in models:
                 outputs = model(x_batch)
                 if outputs_sum is None:
                     outputs_sum = outputs
                 else:
                     outputs_sum += outputs
-            
-            # Average the outputs
+
             outputs_avg = outputs_sum / len(models)
-            predicted = torch.argmax(outputs_avg, dim=1).cpu()
-            total += y_batch.size(0)
-            ensemble_correct += (predicted == y_batch).sum().item()
-    print(f'Ensemble Accuracy on test set: {100 * ensemble_correct / total:.2f}')
+            ensemble_pred = torch.argmax(outputs_avg, dim=1).cpu()
+            total += batch_size
+            ensemble_correct += (ensemble_pred == y_batch).sum().item()
+
+            # For each image, determine disagreement
+            for i in range(batch_size):
+                preds = model_preds[:, i].tolist() # get list of preds of ith image for all models
+                unique_preds = set(preds)
+                disagreement = len(unique_preds) - 1 # 0 is unanimous; >0 otherwise
+                total_disagreement += disagreement
+                if disagreement > 0:
+                    n_images_with_disagreement += 1
+            
+    ensemble_accuracy = 100 * ensemble_correct / total
+    print(f'Ensemble Accuracy on test set: {ensemble_accuracy:.2f} %')
+    avg_disagreement = total_disagreement / total # 0 is models always agree
+    percent_disagree = 100 * n_images_with_disagreement / total
+    print(f'Average disagreement per image: {avg_disagreement:.2f}')
+    print(f'Percentage of images with any disagreement: {percent_disagree:.2f}')
 
 if __name__ == '__main__':
     # Set ensemble size
