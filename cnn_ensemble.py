@@ -1,12 +1,11 @@
 import os
-import random
 import torch, torchvision
 from torch import nn
 from torchvision import transforms
-from torch.utils.data import DataLoader, ConcatDataset, random_split, Subset
-from torchsummary import summary
-from collections import Counter
+from torch.utils.data import DataLoader, ConcatDataset, random_split
 from copy import deepcopy
+import torch.nn.functional as F
+import pandas as pd
 
 # --- Architecting the base model ---
 def create_cnn_model():
@@ -74,21 +73,42 @@ def train(model, optimizer, n_epochs, train_dl):
         accuracy_train /= len(train_dl.dataset)
         print(f'Epoch {epoch+1} - loss: {loss_train:.4f} - accuracy: {accuracy_train:.4f}')
 
-# --- Checkpointing ---
-checkpoint_path = 'ensemble_checkpoint_v1.pth'
+# --- Measuring Polarization ---
+def measure_polarization(models, x, device):
+    B = x.size(0)
+    n_models = len(models)
+    probs_list = [] # holds each model's probability predictions (after softmax)
+    for model in models:
+        with torch.no_grad():
+            outputs = model(x.to(device)) # (B, n_classes)
+            probs = F.softmax(outputs, dim=1).cpu() # convert to probabilities
+            probs_list.append(probs)
 
-# Define class names
-class_names = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat', 'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']
+    # Compute polarization for each image in the batch
+    polarization_scores = []
+    for i in range(B):
+        model_probs = [probs[i] for probs in probs_list] # list of (n_classes,) tensors
+        avg_prob = torch.stack(model_probs, dim=0).mean(dim=0) # consensus distribution
 
-# --- Evaluate Ensemble Performance ---
+        # Compute the KL divergence from each model's distribution to the consensus
+        kl_divs = [F.kl_div(torch.log(probs), avg_prob, reduction="batchmean") for probs in model_probs]
+
+        # Average the KL divergences as the polarization score for this image
+        polarization = sum(kl_divs) / n_models
+        polarization_scores.append(polarization)
+    
+    return torch.tensor(polarization_scores)
+
+# --- Evaluate Ensemble Performance and Generate Disagreement Dataset---
 def evaluate_ensemble(models, test_dl, device):
     total = 0
     ensemble_correct = 0
     total_disagreement = 0
     n_images_with_disagreement = 0
+    results = [] # list of dictionaries for each test image
 
     with torch.no_grad():
-        for x_batch, y_batch in test_dl:
+        for batch_idx, (x_batch, y_batch) in enumerate(test_dl):
             x_batch = x_batch.to(device)
             batch_size = x_batch.size(0)
 
@@ -123,12 +143,35 @@ def evaluate_ensemble(models, test_dl, device):
                 if disagreement > 0:
                     n_images_with_disagreement += 1
             
+            # Compute polarization scores for this batch.
+            polarization_scores = measure_polarization(models, x_batch, device)
+
+            # Record each image's polarization and accuracy
+            for i in range(batch_size):
+                true_label = y_batch[i].item()
+                pred_label = ensemble_pred[i].item()
+                correctness = 1 if (pred_label == true_label) else 0
+                polarization = polarization_scores[i].item()
+                results.append({'image_idx': batch_idx * test_dl.batch_size + i,
+                                'polarization': polarization,
+                                'correct': correctness})
+            
     ensemble_accuracy = 100 * ensemble_correct / total
     print(f'Ensemble Accuracy on test set: {ensemble_accuracy:.2f} %')
     avg_disagreement = total_disagreement / total # 0 is models always agree
     percent_disagree = 100 * n_images_with_disagreement / total
     print(f'Average disagreement per image: {avg_disagreement:.2f}')
     print(f'Percentage of images with any disagreement: {percent_disagree:.2f}')
+
+    return pd.DataFrame(results)
+
+# --- Checkpointing ---
+checkpoint_path = 'ensemble_checkpoint_v1.pth'
+
+# Define class names
+class_names = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat', 
+               'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']
+
 
 if __name__ == '__main__':
     # Set ensemble size
@@ -204,6 +247,9 @@ if __name__ == '__main__':
         print("Training complete and model saved.")
     
     # Evaluate the model
-    evaluate_ensemble(ensemble_models, test_dl, device)
+    disagreement_df = evaluate_ensemble(ensemble_models, test_dl, device)
     print("Evaluation complete.")
+    print(disagreement_df.head())
+    disagreement_df.to_csv('testing123.csv', index=False)
+
     
