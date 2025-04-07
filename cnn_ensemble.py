@@ -259,7 +259,7 @@ if __name__ == '__main__':
 
     # Load CIFAR-10 (OOD) Testing dataset
     cifar_test = torchvision.datasets.CIFAR10(root=image_path, train=False, transform=transform_ood, download=True)
-    ood_indices = random.sample(range(len(cifar_test)), 500)
+    ood_indices = random.sample(range(len(cifar_test)), 3000)
     ood_subset = Subset(cifar_test, ood_indices)
 
     # Combine the testing datasets
@@ -295,6 +295,6 @@ if __name__ == '__main__':
     disagreement_df = evaluate_ensemble(ensemble_models, test_dl, device, in_distribution_count)
     print("Evaluation complete.")
     print(disagreement_df.head())
-    disagreement_df.to_csv('testing123.csv', index=False)
+    disagreement_df.to_csv('test2.csv', index=False)
 
     
