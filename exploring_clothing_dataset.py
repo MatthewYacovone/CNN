@@ -45,5 +45,4 @@ for i in range(16):
     npimg = images[i].numpy()
     plt.imshow(np.transpose(npimg, (1, 2, 0)), cmap="Greys")
     plt.title(class_names[labels[i]])
-
 plt.show()
