@@ -4,12 +4,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import GaussianNB
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 
-df = pd.read_csv('test3.csv', engine='python')
-print(df.head(5))
-df.columns = ['image_idx', 'polarization', 'in_distribution', 'correct']
-df.drop(columns=['image_idx'])
-
-def train_NB():
+def run_classifier(disagreement_df):
+    disagreement_df.columns = ['image_idx', 'polarization', 'in_distribution', 'correct']
+    df = disagreement_df.drop(columns=['image_idx'])
     X = df[['polarization', 'correct']]
     y = df['in_distribution']
 
@@ -23,11 +20,6 @@ def train_NB():
     y_predictions = clf.predict(X_test)
     accuracy = accuracy_score(y_test, y_predictions)
     cm = confusion_matrix(y_test, y_predictions)
-    # y_proba = clf.predict_proba(X_test)
-    # threshold = 0.1
-    # y_pred_custom = (y_proba[:, 1] >= threshold).astype(int)
-    # accuracy = accuracy_score(y_test, y_pred_custom)
-    # cm = confusion_matrix(y_test, y_pred_custom)
     report = classification_report(y_test, y_predictions)
 
     print(f'Naive Bayes Classifier Accuracy; {(accuracy * 100):2f}')
@@ -39,6 +31,6 @@ def train_NB():
     return clf
 
 if __name__ == '__main__':
-    train_NB()
-
+    df = pd.read_csv('emsemble_disagreement_from_cnn_ensemble.csv')
+    run_classifier(df)
 

@@ -198,11 +198,7 @@ checkpoint_path = 'ensemble_checkpoint_v2.pth'
 class_names = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat', 
                'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot', 'OOD']
 
-if __name__ == '__main__':
-    # --- SET UP ---
-    # Set ensemble size
-    n_models = 5
-
+def run_ensemble(n_models=5):
     # Create ensemble
     ensemble_models = create_ensemble(n_models=n_models)
 
@@ -305,7 +301,13 @@ if __name__ == '__main__':
     # Evaluate the model
     disagreement_df = evaluate_ensemble(ensemble_models, test_dl, device, in_distribution_count)
     print("Evaluation complete.")
-    print(disagreement_df.head())
-    disagreement_df.to_csv('test3.csv', index=False)
+    return disagreement_df
+
+if __name__ == '__main__':
+    df = run_ensemble(n_models=5)
+    print('Evaluation complete.')
+    print(df.head())
+    df.to_csv('emsemble_disagreement_from_cnn_ensemble.csv', index=False)
+
 
     
