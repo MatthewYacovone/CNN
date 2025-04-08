@@ -1,7 +1,7 @@
 import cnn_ensemble
 import ood_classifier
 
-for n in range(4, 12):
+for n in range(1, 12):
     print(f'\n=== Running ensemble with {n} models ===')
 
     # Generate disagreement df for current ensemble size
