@@ -192,7 +192,7 @@ def evaluate_ensemble(models, test_dl, device, in_distribution_count):
     return pd.DataFrame(all_results)
 
 # --- Checkpointing ---
-checkpoint_path = 'ensemble_checkpoint_v1.pth'
+checkpoint_path = 'ensemble_checkpoint_v2.pth'
 
 # --- Define class names ---
 class_names = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat', 
@@ -201,7 +201,7 @@ class_names = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat',
 if __name__ == '__main__':
     # --- SET UP ---
     # Set ensemble size
-    n_models = 3
+    n_models = 4
 
     # Create ensemble
     ensemble_models = create_ensemble(n_models=n_models)
