@@ -192,7 +192,7 @@ def evaluate_ensemble(models, test_dl, device, in_distribution_count):
     return pd.DataFrame(all_results)
 
 # --- Checkpointing ---
-checkpoint_path = 'ensemble_checkpoint_v2.pth'
+checkpoint_path = 'testing_ensemble_importance.pth'
 
 # --- Define class names ---
 class_names = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat', 
@@ -203,11 +203,13 @@ def run_ensemble(n_models=5):
     ensemble_models = create_ensemble(n_models=n_models)
 
     # Setup Device
+    global device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     for model in ensemble_models:
         model.to(device)
 
     # Define Loss Function
+    global loss_fn
     loss_fn = nn.CrossEntropyLoss()
 
     # --- Data Transformations --- 

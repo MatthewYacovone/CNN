@@ -28,7 +28,7 @@ def run_classifier(disagreement_df):
     print('Classification Report')
     print(report)
 
-    return clf
+    return report
 
 if __name__ == '__main__':
     df = pd.read_csv('emsemble_disagreement_from_cnn_ensemble.csv')
