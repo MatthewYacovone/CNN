@@ -4,7 +4,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import GaussianNB
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 
-df = pd.read_csv('test2.csv', engine='python')
+df = pd.read_csv('test3.csv', engine='python')
 print(df.head(5))
 df.columns = ['image_idx', 'polarization', 'in_distribution', 'correct']
 df.drop(columns=['image_idx'])

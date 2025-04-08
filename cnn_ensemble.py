@@ -201,7 +201,7 @@ class_names = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat',
 if __name__ == '__main__':
     # --- SET UP ---
     # Set ensemble size
-    n_models = 4
+    n_models = 5
 
     # Create ensemble
     ensemble_models = create_ensemble(n_models=n_models)
@@ -267,26 +267,37 @@ if __name__ == '__main__':
     print(f'Total testing samples after combining: {len(combined_test_dataset)}')
     test_dl = DataLoader(combined_test_dataset, batch_size, shuffle=False)
 
+    # Number of training dataset pass-throughs
+    n_epochs = 30
+
     # Check if a checkpoint exists; if so, load it. Otherwise, train and save.
     if os.path.exists(checkpoint_path):
         checkpoint = torch.load(checkpoint_path, map_location=device)
         for idx, model in enumerate(ensemble_models):
-            model.load_state_dict(checkpoint[f'model_{idx}'])
-        print("Loaded saved model weights.")
-    else:
-        # Number of training dataset pass-throughs
-        n_epochs = 30
+            key = f'model_{idx}'
+            if key in checkpoint:
+                model.load_state_dict(checkpoint[key])
+                print(f'Loaded saved model weights for {key}.')
+            else:
+                print(f'No checkpoint found for {key}. Training new model.')
+                optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+                train(model, optimizer, n_epochs, train_dataloaders[idx])
 
+                # add the new model's state to the checkpoint
+                checkpoint[key] = model.state_dict()
+        torch.save(checkpoint, checkpoint_path)
+        print("Checkpoint updated and saved.")
+    else: 
+        # No checkpoints exist; train all models
+        # Save a checkpoint for the entire ensemble
+        checkpoint = {}
+        
         # Create separate optimizers for each model
         optimizers = [torch.optim.Adam(model.parameters(), lr=0.001) for model in ensemble_models]
         
         for idx, (model, optimizer, train_dl) in enumerate(zip(ensemble_models, optimizers, train_dataloaders)):
             print(f'\nTraining model {idx+1} on its own training set:')
             train(model, optimizer, n_epochs, train_dl)
-        
-        # Save a checkpoint for the entire ensemble
-        checkpoint = {}
-        for idx, model in enumerate(ensemble_models):
             checkpoint[f'model_{idx}'] = model.state_dict()
         torch.save(checkpoint, checkpoint_path)
         print("Training complete and model saved.")
@@ -295,6 +306,6 @@ if __name__ == '__main__':
     disagreement_df = evaluate_ensemble(ensemble_models, test_dl, device, in_distribution_count)
     print("Evaluation complete.")
     print(disagreement_df.head())
-    disagreement_df.to_csv('test2.csv', index=False)
+    disagreement_df.to_csv('test3.csv', index=False)
 
     
